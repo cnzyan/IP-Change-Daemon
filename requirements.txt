@@ -1,0 +1,6 @@
+func_timeout
+loguru
+requests
+pyquery
+schedule
+pyinstaller
