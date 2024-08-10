@@ -251,13 +251,18 @@ def chk_ipchg():
     if chkIPchangeEmail == 1:
         send_email(mail_title, contents, email_receivers, smtp_host,
                    smtp_port, mail_user, mail_pass, sender_email, smtptype)
+
+
 def get_time():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-InetAccessMsg=""
+
+InetAccessMsg = ""
+
+
 def chk_inet_access():
-    global InetAccessLog,InetAccessMsg
-    InetAccess=True
+    global InetAccessLog, InetAccessMsg
+    InetAccess = True
     timestr = get_time()
     try:
         url = r'https://www.baidu.com'
@@ -266,27 +271,28 @@ def chk_inet_access():
         # print(data)
         loguru.logger.info("网络访问正常"+timestr)
         InetAccessLog.append("网络访问正常"+timestr)
-        InetAccess=True
+        InetAccess = True
     except:
         loguru.logger.error("网络访问异常"+timestr)
         InetAccessLog.append("网络访问异常"+timestr)
-        InetAccess=False
+        InetAccess = False
     if len(InetAccessLog) > 60:
         InetAccessLog = InetAccessLog[-60:]
     with open("InetAccess.log", "w", encoding="utf-8") as f:
         for log in InetAccessLog:
             f.write(log+"\n")
     if InetAccess == False:
-        InetAccessMsg=str(InetAccessLog)
+        InetAccessMsg = str(InetAccessLog)
         return False
     else:
         if InetAccessMsg != "":
             if chkInetAccessEmail == 1:
-                send_email("网络访问异常", InetAccessMsg, email_receivers, smtp_host,smtp_port, mail_user, mail_pass, sender_email, smtptype)
-            InetAccessMsg=""
+                send_email("网络访问异常", InetAccessMsg, email_receivers, smtp_host,
+                           smtp_port, mail_user, mail_pass, sender_email, smtptype)
+            InetAccessMsg = ""
         return True
-    
-    
+
+
 def prepare_conf_file(configpath):  # 准备配置文件
     if os.path.isfile(configpath) == True:
         pass
@@ -325,12 +331,12 @@ def get_conf_from_file(config_path, config_section, conf_list):  # 读取配置�
         "smtptype": "SSL",
         "email_receivers": "",
         "title": "OutterIP",
-        "chkIPchange" : "1",
-        "chkIPchangeEmail" : "1",
-        "chkIPchangeInterval" : "60",
-        "chkInetAccess" : "1",
-        "chkInetAccessEmail" : "1",
-        "chkInetAccessInterval" : "3600",
+        "chkIPchange": "1",
+        "chkIPchangeEmail": "1",
+        "chkIPchangeInterval": "60",
+        "chkInetAccess": "1",
+        "chkInetAccessEmail": "1",
+        "chkInetAccessInterval": "3600",
     }
     with open(config_path, "rb") as f:
         result = chardet.detect(f.read())
@@ -406,17 +412,16 @@ if __name__ == "__main__":
         ],
     )
 
-    
     chkInetAccess = int(chkInetAccess.strip())
     chkInetAccessEmail = int(chkInetAccessEmail.strip())
     chkInetAccessInterval = int(chkInetAccessInterval.strip())
     chkIPchange = int(chkIPchange.strip())
     chkIPchangeEmail = int(chkIPchangeEmail.strip())
     chkIPchangeInterval = int(chkIPchangeInterval.strip())
-    
+
     last_ip = ''
     history_ip = []
-    InetAccessLog=[]
+    InetAccessLog = []
     if os.path.exists("history_ip.log") == False:
         with open("history_ip.log", "w", encoding="utf-8") as f:
             f.write("")
@@ -433,12 +438,13 @@ if __name__ == "__main__":
 
     sheduler = loguru.logger.add(
         "daemon_ip_chg.log", rotation="1 day", retention="7 days", level="INFO", encoding="utf-8")
-    if chk_inet_access()==True:
+    if chk_inet_access() == True:
         chk_ipchg()
     if chkIPchange == 1:
         schedule.every(chkIPchangeInterval).seconds.do(chk_ipchg)  # 每60秒执行一次
     if chkInetAccess == 1:
-        schedule.every(chkInetAccessInterval).seconds.do(chk_inet_access)  # 每1小时执行一次
+        schedule.every(chkInetAccessInterval).seconds.do(
+            chk_inet_access)  # 每1小时执行一次
     while True:
         schedule.run_pending()
         time.sleep(10)
