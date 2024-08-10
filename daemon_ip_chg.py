@@ -249,16 +249,6 @@ def prepare_conf_file(configpath):  # 准备配置文件
     if os.path.isfile(configpath) == True:
         pass
     else:
-        '''
-    smtp_host = 'smtp.qq.com'
-    smtp_port = 465
-    mail_user = 'cnzyan@qq.com'
-    mail_pass = 'omxjtlivotdgbici'
-    sender_email = 'cnzyan@qq.com'
-    receivers = ['cnzyan@qq.com']
-    smtptype = 'SSL'
-        '''
-
         config.add_section("Email")
         config.set("Email", "smtp_host", r"smtp.qq.com")
         config.set("Email", "smtp_port", r"465")
