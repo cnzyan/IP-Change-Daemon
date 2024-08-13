@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import re
 import smtplib
@@ -360,7 +359,10 @@ def get_conf_from_file(config_path, config_section, conf_list):  # 读取配置�
         print(str(conf_item) + ":" + str(conf_item_setting))
         conf_item_settings.append(conf_item_setting)
         pass
-    return tuple(conf_item_settings)
+    if len(conf_list) > 1:
+        return tuple(conf_item_settings)
+    else:
+        return conf_item_settings[0]
 
 
 if __name__ == "__main__":
