@@ -23,7 +23,7 @@ requests.packages.urllib3.disable_warnings()
 
 # python -m venv ./.venv
 # .\.venv\Scripts\Activate.ps1
-
+# pyinstaller -F -w daemon_ip_chg.py -i ip.png -n 外网IP监控 --add-data="ip.png;."
 # pyinstaller -F daemon_ip_chg.py
 
 headers = """
@@ -534,7 +534,7 @@ def systray():
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("退出", on_quit)
     )
-    icon = pystray.Icon(name="公网IP监视器", icon=Image.open(
+    icon = pystray.Icon(name="外网IP监视器", icon=Image.open(
         get_resource_path("./ip.png")), menu=menu_options, on_quit=on_quit)
     icon.run()
 
