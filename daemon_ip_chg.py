@@ -76,7 +76,6 @@ def send_email(Subject, content, tomail, smtp_host, smtp_port, mail_user, mail_p
     return send_mail(message,  smtp_host, smtp_port,  mail_user, mail_pass, smtptype)
 
 
-@func_timeout.func_set_timeout(90)
 def send_mail(message,  smtp_host, smtp_port, user=None, passwd=None, security=None):  # 发送邮件
     '''
     Sends a message to a smtp server
@@ -160,6 +159,19 @@ def GetOuterIP(method):
             ip = "无法获取，可能是网站改版，请手动访问 https://2024.ip138.com/"
         loguru.logger.info("IP地址："+ip+"")
         return ip
+    elif method == "micromsg":
+        try:
+            url = r'https://qyapi.weixin.qq.com/cgi-bin/message/send'
+            data = requests.get(url, headers=headers,
+                                verify=False).content.decode('utf-8')
+            reg=re.compile(r'from ip: (.*), more info')
+            ip=reg.findall(data)
+            ip=ip[0]
+            # print(ip)
+        except:
+            ip = "无法获取，可能是网站改版，请手动访问 https://qyapi.weixin.qq.com/cgi-bin/message/send"
+        loguru.logger.info("IP地址："+ip+"")
+        return ip
     else:
         loguru.logger.error("未知的获取IP地址方法")
         ip = "未知的获取IP地址方法"
@@ -170,6 +182,7 @@ def chk_ipchg():
     global last_ip, history_ip
     # 设置登录及服务器信息
     ip_pool = []
+    ip_pool.append(GetOuterIP('micromsg'))
     ip_pool.append(GetOuterIP('chinaz'))
     ip_pool.append(GetOuterIP('ipplus360'))
     ip_pool.append(GetOuterIP('ip138'))
@@ -255,8 +268,28 @@ def chk_ipchg():
     else:
         last_ip = ip_pool
     console_print("NewIP:" + ip_pool)
+    
+    b=list(set(eval(ip_pool.strip())))
+    ip_output = ""
+    index=0
+    for i in b:
+        index+=1
+        if index==1:
+            ip_output=i
+        else:
+            ip_output=ip_output+";"+i
+    
+    c=list(set(eval(str(history_ip).strip())))
+    history_ip_output = ""
+    index=0
+    for i in c:
+        index+=1
+        if index==1:
+            history_ip_output=i
+        else:
+            history_ip_output=history_ip_output+";"+i
 
-    contents = "IP地址变化为："+ip_pool+"<br>请注意查看,历史IP地址为："+str(history_ip)
+    contents = "IP地址变化为："+ip_output+"<br>请注意查看,历史IP地址为："+history_ip_output
     if chkIPchangeEmail == 1:
         send_email(mail_title, contents, email_receivers, smtp_host,
                    smtp_port, mail_user, mail_pass, sender_email, smtptype)
@@ -410,7 +443,7 @@ def textpad_insert(text, f):
 
 
 def console_print(text):
-    global textpad
+    global textpad, mainwin
     mainwin.after(500, textpad_insert, textpad, text)
     pass
 
