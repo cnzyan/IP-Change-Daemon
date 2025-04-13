@@ -18,6 +18,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 history_ip.log
+*.zip
 # C extensions
 *.so
 *.spec

@@ -5,3 +5,4 @@ pyquery
 schedule
 pyinstaller
 chardet
+pystray

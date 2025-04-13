@@ -14,6 +14,7 @@ import schedule
 import chardet
 import configparser
 import pystray
+import tkinter as tk
 from PIL import Image
 from email import encoders
 from email.mime.base import MIMEBase
@@ -147,7 +148,8 @@ def GetOuterIP(method):
         return ip
     elif method == "ip138":
         try:
-            url = r'https://2024.ip138.com/'
+            str_year=time.strftime("%Y", time.localtime())
+            url = f'https://{str_year}.ip138.com/'
             data = requests.get(url, headers=headers,
                                 verify=False).content.decode('utf-8')
             # print(data)
@@ -156,7 +158,7 @@ def GetOuterIP(method):
             ip = ip.replace("您的IP地址是：", "")
             # print(ip)
         except:
-            ip = "无法获取，可能是网站改版，请手动访问 https://2024.ip138.com/"
+            ip = "无法获取，可能是网站改版，请手动访问 "+url
         loguru.logger.info("IP地址："+ip+"")
         return ip
     elif method == "micromsg":
@@ -164,9 +166,9 @@ def GetOuterIP(method):
             url = r'https://qyapi.weixin.qq.com/cgi-bin/message/send'
             data = requests.get(url, headers=headers,
                                 verify=False).content.decode('utf-8')
-            reg=re.compile(r'from ip: (.*), more info')
-            ip=reg.findall(data)
-            ip=ip[0]
+            reg = re.compile(r'from ip: (.*), more info')
+            ip = reg.findall(data)
+            ip = ip[0]
             # print(ip)
         except:
             ip = "无法获取，可能是网站改版，请手动访问 https://qyapi.weixin.qq.com/cgi-bin/message/send"
@@ -268,26 +270,26 @@ def chk_ipchg():
     else:
         last_ip = ip_pool
     console_print("NewIP:" + ip_pool)
-    
-    b=list(set(eval(ip_pool.strip())))
+
+    b = list(set(eval(ip_pool.strip())))
     ip_output = ""
-    index=0
+    index = 0
     for i in b:
-        index+=1
-        if index==1:
-            ip_output=i
+        index += 1
+        if index == 1:
+            ip_output = i
         else:
-            ip_output=ip_output+";"+i
-    
-    c=list(set(eval(str(history_ip).strip())))
+            ip_output = ip_output+";"+i
+
+    c = list(set(eval(str(history_ip).strip())))
     history_ip_output = ""
-    index=0
+    index = 0
     for i in c:
-        index+=1
-        if index==1:
-            history_ip_output=i
+        index += 1
+        if index == 1:
+            history_ip_output = i
         else:
-            history_ip_output=history_ip_output+";"+i
+            history_ip_output = history_ip_output+";"+i
 
     contents = "IP地址变化为："+ip_output+"<br>请注意查看,历史IP地址为："+history_ip_output
     if chkIPchangeEmail == 1:
@@ -338,7 +340,9 @@ def chk_inet_access():
 
 
 def prepare_conf_file(configpath):  # 准备配置文件
+    print(configpath)
     if os.path.isfile(configpath) == True:
+        print("配置文件已存在")
         pass
     else:
         config.add_section("Email")
@@ -400,8 +404,10 @@ def get_conf_from_file(config_path, config_section, conf_list):  # 读取配置�
                 # print(conf_item_setting)
         except Exception as e:
             conf_item_setting = conf_default[conf_item]
-
-        console_print(str(conf_item) + ":" + str(conf_item_setting))
+        try:
+            console_print(str(conf_item) + ":" + str(conf_item_setting))
+        except Exception as e:
+            print(str(conf_item) + ":" + str(conf_item_setting))
         conf_item_settings.append(conf_item_setting)
         pass
     if len(conf_list) > 1:
@@ -418,19 +424,24 @@ def on_quit():
 
 def sw_console():
     global console_show
-    if console_show == 0:
-        mainwin.deiconify()
-        console_show = 1
-    else:
-        mainwin.withdraw()
-        console_show = 0
+    
+    action_done=0
+
+    while action_done== 0:
+        
+        try:
+            if console_show == 0:
+                mainwin.deiconify()
+                console_show = 1
+            else:
+                mainwin.withdraw()
+                console_show = 0
+            action_done=1
+        except:
+            action_done=0
+            time.sleep(1)
+
     pass
-
-
-def get_resource_path(relative_path):
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
 
 
 def textpad_insert(text, f):
@@ -446,6 +457,12 @@ def console_print(text):
     global textpad, mainwin
     mainwin.after(500, textpad_insert, textpad, text)
     pass
+
+
+def get_resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 
 def set_email():
@@ -577,22 +594,50 @@ def app():
     while True:
         schedule.run_pending()
         time.sleep(10)
+class CustomText(tk.Text):
+    def __init__(self, *args, **kwargs):
+        """自定义多行文本框类，可实时监控变化事件"""
+        tk.Text.__init__(self, *args, **kwargs)
+        self._orig = self._w + '_orig'
+        self.tk.call('rename', self._w, self._orig)
+        self.tk.createcommand(self._w, self._proxy)
 
+    def _proxy(self, command, *args):
+        if command == 'get' and (args[0] == 'sel.first' and args[1] == 'sel.last') and not self.tag_ranges('sel'):
+            return
+        if command == 'delete' and (args[0] == 'sel.first' and args[1] == 'sel.last') and not self.tag_ranges('sel'):
+            return
+        cmd = (self._orig, command) + args
+        result = self.tk.call(cmd)
+        if command in ('insert', 'delete', 'replace'):
+            self.event_generate('<<TextModified>>')
+        return result
+
+def on_modify(event):
+    # 最大行数
+    max_lines = 100
+
+    # 获取Text组件的内容
+    content = textpad.get('1.0', 'end-1c')
+    
+    # 分割内容为单行
+    lines = content.split('\n')
+    
+    # 如果超出最大行数，则删除多余的行
+    if len(lines) > max_lines:
+        # 保留最新的max_lines行
+        lines = lines[-max_lines:]
+        
+        # 更新Text组件的内容
+        textpad.delete('1.0', 'end')
+        textpad.insert('end', '\n'.join(lines))
 
 if __name__ == "__main__":
     icon = ''
-    systray()
-    import tkinter as tk
-    mainwin = tk.Tk()
-    mainwin.title("控制台")
-    mainwin.geometry("600x600")
-    textpad = tk.Text(mainwin, undo=False)
-    textpad.pack(expand=True, fill='both')
-    textpad.insert(tk.END, "开启控制台\n")
     config = configparser.ConfigParser()  # 类实例化
 
     # 定义文件路径
-    configpath = r".\setup.ini"
+    configpath = r"./setup.ini"
     prepare_conf_file(configpath)
     (
         chkIPchange,
@@ -643,6 +688,19 @@ if __name__ == "__main__":
     chkIPchange = int(chkIPchange.strip())
     chkIPchangeEmail = int(chkIPchangeEmail.strip())
     chkIPchangeInterval = int(chkIPchangeInterval.strip())
+    
+    console_show=0
+    systray()
+    
+    mainwin = tk.Tk()
+    mainwin.title("控制台")
+    mainwin.geometry("600x600")
+    textpad = CustomText(mainwin, undo=False)
+    
+    textpad.pack(expand=True, fill='both')
+    textpad.bind('<<TextModified>>', on_modify)
+    textpad.insert(tk.END, "开启控制台\n")
+
 
     last_ip = ''
     history_ip = []
