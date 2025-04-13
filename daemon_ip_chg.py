@@ -472,6 +472,7 @@ def set_email():
     from tkinter import messagebox
 
     def save_email():
+        global email_receivers, smtp_host, smtp_port, mail_user, mail_pass, sender_email, smtptype, mail_title
         email_receivers = email_receivers_entry.get()
         smtp_host = smtp_host_entry.get()
         smtp_port = smtp_port_entry.get()
