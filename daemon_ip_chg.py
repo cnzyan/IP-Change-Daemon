@@ -292,8 +292,8 @@ def chk_ipchg():
             history_ip_output = history_ip_output+";"+i
 
     contents = "IP地址变化为："+ip_output+"<br>请注意查看,历史IP地址为："+history_ip_output
-    if chkIPchangeEmail == 1:
-        send_email(mail_title, contents, email_receivers, smtp_host,
+    if chkIPchangeEmail == 1: # 发送邮件
+        send_email(mail_title+"IP地址改变", contents, email_receivers, smtp_host,
                    smtp_port, mail_user, mail_pass, sender_email, smtptype)
 
 
@@ -332,8 +332,8 @@ def chk_inet_access():
         return False
     else:
         if InetAccessMsg != "":
-            if chkInetAccessEmail == 1:
-                send_email("网络访问异常", InetAccessMsg, email_receivers, smtp_host,
+            if chkInetAccessEmail == 1: # 发送邮件
+                send_email(mail_title+"网络访问异常", InetAccessMsg, email_receivers, smtp_host,
                            smtp_port, mail_user, mail_pass, sender_email, smtptype)
             InetAccessMsg = ""
         return True
