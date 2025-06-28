@@ -20,6 +20,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from queue import Queue
 requests.packages.urllib3.disable_warnings()
 
 # python -m venv ./.venv
@@ -51,6 +52,40 @@ headers = {x.split(':')[0].strip(): (
     "".join(x.split(':')[1:])).strip().replace('//', "://") for x in headers}
 
 
+def new_thread(func):
+
+    @wraps(func)
+    def inner(*args, **kwargs):
+        # print(f'函数的名字：{func.__name__}')
+        # print(f'函数的位置参数：{args}')
+        thread = threading.Thread(target=func, args=args, kwargs=kwargs)
+        thread.daemon = True  # 设置为守护线程
+        thread.start()
+
+    return inner
+
+
+def put_email_queue(message,  smtp_host, smtp_port,  mail_user, mail_pass, smtptype):
+    """
+    创建一个邮件队列
+    """
+
+    email_queue.put((message, smtp_host, smtp_port,
+                    mail_user, mail_pass, smtptype))
+
+
+@new_thread
+def process_email_queue(email_queue):
+    loguru.logger.info("邮件队列处理线程已启动")
+    while 1 == 1:
+        if email_queue.empty():
+            # loguru.logger.info("邮件队列为空，等待新任务")
+            time.sleep(1)
+            continue
+        msg, host, port, user, passwd, security = email_queue.get()
+        send_mail(msg, host, port, user, passwd, security)
+
+
 def send_email(Subject, content, tomail, smtp_host, smtp_port, mail_user, mail_pass, sender_email, smtptype):  # 发送邮件-准备邮件内容
     # 设置登录及服务器信息
     # 设置email信息
@@ -74,7 +109,7 @@ def send_email(Subject, content, tomail, smtp_host, smtp_port, mail_user, mail_p
     message.attach(part1)
 
     # message.attach(picture)
-    return send_mail(message,  smtp_host, smtp_port,  mail_user, mail_pass, smtptype)
+    return put_email_queue(message,  smtp_host, smtp_port,  mail_user, mail_pass, smtptype)
 
 
 def send_mail(message,  smtp_host, smtp_port, user=None, passwd=None, security=None):  # 发送邮件
@@ -126,7 +161,7 @@ def GetOuterIP(method):
                                 verify=False).content.decode('utf-8')
             # print(data)
             d = pyquery.PyQuery(data)
-            ip = str(d('#ip').text())
+            ip = str(d('input.text-black').attr('value'))
             # print(ip)
         except:
             ip = "无法获取，可能是网站改版，请手动访问 https://ip.chinaz.com"
@@ -148,7 +183,7 @@ def GetOuterIP(method):
         return ip
     elif method == "ip138":
         try:
-            str_year=time.strftime("%Y", time.localtime())
+            str_year = time.strftime("%Y", time.localtime())
             url = f'https://{str_year}.ip138.com/'
             data = requests.get(url, headers=headers,
                                 verify=False).content.decode('utf-8')
@@ -292,7 +327,7 @@ def chk_ipchg():
             history_ip_output = history_ip_output+";"+i
 
     contents = "IP地址变化为："+ip_output+"<br>请注意查看,历史IP地址为："+history_ip_output
-    if chkIPchangeEmail == 1: # 发送邮件
+    if chkIPchangeEmail == 1:  # 发送邮件
         send_email(mail_title+"IP地址改变", contents, email_receivers, smtp_host,
                    smtp_port, mail_user, mail_pass, sender_email, smtptype)
 
@@ -311,12 +346,13 @@ def chk_inet_access():
     try:
         url = r'https://www.baidu.com'
         data = requests.get(url, headers=headers,
-                            verify=False, timeout=10).content.decode('utf-8')
+                            verify=False, timeout=(30, 30))
         # print(data)
         loguru.logger.info("网络访问正常"+timestr)
         console_print("网络访问正常"+timestr)
         InetAccessLog.append("网络访问正常"+timestr)
         InetAccess = True
+        data = None
     except:
         loguru.logger.error("网络访问异常"+timestr)
         console_print("网络访问异常"+timestr)
@@ -332,7 +368,7 @@ def chk_inet_access():
         return False
     else:
         if InetAccessMsg != "":
-            if chkInetAccessEmail == 1: # 发送邮件
+            if chkInetAccessEmail == 1:  # 发送邮件
                 send_email(mail_title+"网络访问异常", InetAccessMsg, email_receivers, smtp_host,
                            smtp_port, mail_user, mail_pass, sender_email, smtptype)
             InetAccessMsg = ""
@@ -424,11 +460,11 @@ def on_quit():
 
 def sw_console():
     global console_show
-    
-    action_done=0
 
-    while action_done== 0:
-        
+    action_done = 0
+
+    while action_done == 0:
+
         try:
             if console_show == 0:
                 mainwin.deiconify()
@@ -436,9 +472,9 @@ def sw_console():
             else:
                 mainwin.withdraw()
                 console_show = 0
-            action_done=1
+            action_done = 1
         except:
-            action_done=0
+            action_done = 0
             time.sleep(1)
 
     pass
@@ -563,18 +599,6 @@ def set_email():
     cancel_btn.place(x=200, y=250, width=80, height=30)
 
 
-def new_thread(func):
-
-    @wraps(func)
-    def inner(*args, **kwargs):
-        # print(f'函数的名字：{func.__name__}')
-        # print(f'函数的位置参数：{args}')
-        thread = threading.Thread(target=func, args=args, kwargs=kwargs)
-        thread.start()
-
-    return inner
-
-
 @new_thread
 def systray():
     global icon
@@ -595,6 +619,8 @@ def app():
     while True:
         schedule.run_pending()
         time.sleep(10)
+
+
 class CustomText(tk.Text):
     def __init__(self, *args, **kwargs):
         """自定义多行文本框类，可实时监控变化事件"""
@@ -614,24 +640,26 @@ class CustomText(tk.Text):
             self.event_generate('<<TextModified>>')
         return result
 
+
 def on_modify(event):
     # 最大行数
     max_lines = 100
 
     # 获取Text组件的内容
     content = textpad.get('1.0', 'end-1c')
-    
+
     # 分割内容为单行
     lines = content.split('\n')
-    
+
     # 如果超出最大行数，则删除多余的行
     if len(lines) > max_lines:
         # 保留最新的max_lines行
         lines = lines[-max_lines:]
-        
+
         # 更新Text组件的内容
         textpad.delete('1.0', 'end')
         textpad.insert('end', '\n'.join(lines))
+
 
 if __name__ == "__main__":
     icon = ''
@@ -689,19 +717,20 @@ if __name__ == "__main__":
     chkIPchange = int(chkIPchange.strip())
     chkIPchangeEmail = int(chkIPchangeEmail.strip())
     chkIPchangeInterval = int(chkIPchangeInterval.strip())
-    
-    console_show=0
+
+    console_show = 0
     systray()
-    
+
+    email_queue = Queue()
+    process_email_queue(email_queue)
     mainwin = tk.Tk()
     mainwin.title("控制台")
     mainwin.geometry("600x600")
     textpad = CustomText(mainwin, undo=False)
-    
+
     textpad.pack(expand=True, fill='both')
     textpad.bind('<<TextModified>>', on_modify)
     textpad.insert(tk.END, "开启控制台\n")
-
 
     last_ip = ''
     history_ip = []
