@@ -5,7 +5,6 @@ import sys
 import time
 import re
 import smtplib
-import func_timeout
 import loguru
 import requests
 import pyquery
@@ -69,9 +68,9 @@ def put_email_queue(message,  smtp_host, smtp_port,  mail_user, mail_pass, smtpt
     """
     创建一个邮件队列
     """
-
+    delay = 0
     email_queue.put((message, smtp_host, smtp_port,
-                    mail_user, mail_pass, smtptype))
+                    mail_user, mail_pass, smtptype, delay))
 
 
 @new_thread
@@ -82,8 +81,25 @@ def process_email_queue(email_queue):
             # loguru.logger.info("邮件队列为空，等待新任务")
             time.sleep(1)
             continue
-        msg, host, port, user, passwd, security = email_queue.get()
-        send_mail(msg, host, port, user, passwd, security)
+        msg, host, port, user, passwd, security, delay = email_queue.get()
+        re_put = False
+        if delay == 0:
+            if send_mail(msg, host, port, user, passwd, security):
+                pass
+            else:
+                delay = 60  # 如果发送失败，延迟60秒重试
+                loguru.logger.error("邮件发送失败，延迟60秒重试")
+                re_put = True
+            time.sleep(0.1)
+        else:
+            time.sleep(1)
+            delay -= 1
+            if delay <= 0:
+                delay = 0
+            loguru.logger.info("邮件发送延迟，等待" + str(delay) + "秒")
+            re_put = True
+        if re_put:
+            email_queue.put((msg, host, port, user, passwd, security, delay))
 
 
 def send_email(Subject, content, tomail, smtp_host, smtp_port, mail_user, mail_pass, sender_email, smtptype):  # 发送邮件-准备邮件内容
