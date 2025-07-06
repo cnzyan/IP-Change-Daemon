@@ -352,11 +352,8 @@ def get_time():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 
-InetAccessMsg = ""
-
-
 def chk_inet_access():
-    global InetAccessLog, InetAccessMsg
+    global InetAccessLog, InetAccessMsg_waiting
     InetAccess = True
     timestr = get_time()
     try:
@@ -374,20 +371,49 @@ def chk_inet_access():
         console_print("网络访问异常"+timestr)
         InetAccessLog.append("网络访问异常"+timestr)
         InetAccess = False
-    if len(InetAccessLog) > 60:
-        InetAccessLog = InetAccessLog[-60:]
+
     with open("InetAccess.log", "w", encoding="utf-8") as f:
         for log in InetAccessLog:
             f.write(log+"\n")
-    if InetAccess == False:
-        InetAccessMsg = str(InetAccessLog)
+
+    if InetAccess == False:  # 网络访问异常
+        InetAccessMsg_waiting = True
         return False
-    else:
-        if InetAccessMsg != "":
+    else:  # 网络访问正常
+        # TODO : 处理InetAccessLog
+        if InetAccessMsg_waiting:  # 网络访问异常信息等待处理
+            if len(InetAccessLog) > 60:
+                InetAccessLog = InetAccessLog[-60:]  # 保留最近60条日志
+            InetAccessLogNew = []
+            if InetAccessLog[-1].find("网络访问异常") == -1:  # 最新日志不是网络访问异常
+                last_fail = False
+                # 遍历日志列表，找到最新的网络访问异常和网络访问正常日志
+                for log in InetAccessLog:
+                    if "网络访问异常" in log:  # 找到最新的网络访问异常日志
+                        if last_fail == False:  # 如果上一个日志不是网络访问异常
+                            InetAccessLogNew .append(log)
+                            last_fail = True
+                    if "网络访问正常" in log:  # 找到最新的网络访问正常日志
+                        if last_fail == True:
+                            InetAccessLogNew.append(log)
+                            last_fail = False
+                InetAccessMsg = "<br>".join(InetAccessLogNew)
+                InetAccessMsg = InetAccessMsg.replace(
+                    "网络访问异常", "<font color='red'>网络访问异常</font>")
+                InetAccessMsg = InetAccessMsg.replace(
+                    "网络访问正常", "<font color='green'>网络访问正常</font>")
+                InetAccessMsg = "<h3>网络访问日志</h3><br>"+InetAccessMsg
+                InetAccessMsg = InetAccessMsg.replace("\n", "<br>")
+                InetAccessMsg = InetAccessMsg.replace(" ", "&nbsp;")
+                InetAccessMsg = InetAccessMsg.replace(
+                    "\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+                InetAccessMsg = InetAccessMsg.replace("\r", "")
+                InetAccessMsg = InetAccessMsg.replace("<br><br>", "<br>")
+                InetAccessLog = []
             if chkInetAccessEmail == 1:  # 发送邮件
-                send_email(mail_title+"网络访问异常", InetAccessMsg, email_receivers, smtp_host,
+                send_email(mail_title+"网络异常已恢复", InetAccessMsg, email_receivers, smtp_host,
                            smtp_port, mail_user, mail_pass, sender_email, smtptype)
-            InetAccessMsg = ""
+            InetAccessMsg_waiting = False
         return True
 
 
@@ -751,6 +777,7 @@ if __name__ == "__main__":
     last_ip = ''
     history_ip = []
     InetAccessLog = []
+    InetAccessMsg_waiting = False
     if os.path.exists("history_ip.log") == False:
         with open("history_ip.log", "w", encoding="utf-8") as f:
             f.write("")
