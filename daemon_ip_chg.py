@@ -197,6 +197,19 @@ def GetOuterIP(method):
             ip = "无法获取，可能是网站改版，请手动访问 https://www.ipplus360.com"
         loguru.logger.info("IP地址："+ip+"")
         return ip
+    elif method=="httpbin":
+        try:
+            url = r'https://httpbin.org/ip'
+            data = requests.get(url, headers=headers,
+                                verify=False).content.decode('utf-8')
+            # print(data)
+            d = json.loads(data)
+            ip = d['origin']
+            # print(ip)
+        except:
+            ip = "无法获取，可能是网站改版，请手动访问 https://httpbin.org/ip"
+        loguru.logger.info("IP地址："+ip+"")
+        return ip
     elif method == "ip138":
         try:
             str_year = time.strftime("%Y", time.localtime())
@@ -404,7 +417,7 @@ def chk_inet_access():
                     "网络访问正常", "<font color='green'>网络访问正常</font>")
                 InetAccessMsg = "<h3>网络访问日志</h3><br>"+InetAccessMsg
                 InetAccessMsg = InetAccessMsg.replace("\n", "<br>")
-                InetAccessMsg = InetAccessMsg.replace(" ", "&nbsp;")
+
                 InetAccessMsg = InetAccessMsg.replace(
                     "\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
                 InetAccessMsg = InetAccessMsg.replace("\r", "")
