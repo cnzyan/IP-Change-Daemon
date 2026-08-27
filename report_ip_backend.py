@@ -14,6 +14,8 @@ import configparser
 import pystray
 import tkinter as tk
 from PIL import Image
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from queue import Queue
@@ -48,7 +50,6 @@ def parse_headers(header_str):
         line = line.strip()
         if not line:
             continue
-        # 只在第一个冒号处分割，避免把值中的冒号也分割
         if ':' in line:
             key, value = line.split(':', 1)
             result[key.strip()] = value.strip()
@@ -185,11 +186,11 @@ def send_mail(message,  smtp_host, smtp_port, user=None, passwd=None, security=N
         s.sendmail(message['From'], to_addr_list, message.as_string())
         s.close()
         loguru.logger.info("邮件发送成功")
-        console_print("邮件发送成功")
+        print("邮件发送成功")
         return True
     except Exception as e:
         loguru.logger.error("邮件发送失败"+str(e))
-        console_print("邮件发送失败"+str(e))
+        print("邮件发送失败"+str(e))
         return False
 
 
@@ -274,15 +275,15 @@ def chk_ipchg():
     ip_pool_str = str(new_ips)
     if ip_pool_str == last_ip:
         loguru.logger.info("IP地址未变化，不发送邮件")
-        console_print("IP地址未变化，不发送邮件")
+        print("IP地址未变化，不发送邮件")
         return
     elif ip_pool_str == "[]":
         loguru.logger.info("IP地址为历史IP，不发送邮件")
-        console_print("IP地址为历史IP，不发送邮件")
+        print("IP地址为历史IP，不发送邮件")
         return
     else:
         last_ip = ip_pool_str
-    console_print("NewIP:" + ip_pool_str)
+    print("NewIP:" + ip_pool_str)
 
     # 格式化IP输出
     ip_output = ";".join(new_ips)
@@ -314,12 +315,12 @@ def chk_inet_access():
         requests.get(url, headers=headers,
                      verify=False, timeout=(30, 30))
         loguru.logger.info("网络访问正常" + timestr)
-        console_print("网络访问正常" + timestr)
+        print("网络访问正常" + timestr)
         InetAccessLog.append("网络访问正常" + timestr)
         InetAccess = True
     except Exception as e:
         loguru.logger.error("网络访问异常" + timestr + " " + str(e))
-        console_print("网络访问异常" + timestr)
+        print("网络访问异常" + timestr)
         InetAccessLog.append("网络访问异常" + timestr)
         InetAccess = False
 
@@ -329,15 +330,14 @@ def chk_inet_access():
         for log in InetAccessLog:
             f.write(log + "\n")
 
-    if InetAccess is False:  # 网络访问异常
+    if InetAccess is False:
         InetAccessMsg_waiting = True
         return False
-    else:  # 网络访问正常
-        if InetAccessMsg_waiting:  # 网络访问异常信息等待处理
+    else:
+        if InetAccessMsg_waiting:
             InetAccessLogNew = []
-            if InetAccessLog[-1].find("网络访问异常") == -1:  # 最新日志不是网络访问异常
+            if InetAccessLog[-1].find("网络访问异常") == -1:
                 last_fail = False
-                # 遍历日志列表，找到最新的网络访问异常和网络访问正常日志
                 for log in InetAccessLog:
                     if "网络访问异常" in log:
                         if last_fail == False:
@@ -354,7 +354,7 @@ def chk_inet_access():
                     "网络访问正常", "<font color='green'>网络访问正常</font>")
                 InetAccessMsg = "<h3>网络访问日志</h3><br>" + InetAccessMsg
                 InetAccessLog = []
-            if chkInetAccessEmail == 1:  # 发送邮件
+            if chkInetAccessEmail == 1:
                 send_email(mail_title + "网络异常已恢复", InetAccessMsg, email_receivers, smtp_host,
                            smtp_port, mail_user, mail_pass, sender_email, smtptype)
             InetAccessMsg_waiting = False
@@ -380,7 +380,6 @@ def prepare_conf_file(configpath):  # 准备配置文件
         config.set("Config", "chkInetAccess", r"1")
         config.set("Config", "chkInetAccessEmail", r"1")
         config.set("Config", "chkInetAccessInterval", r"3600")
-        # write to file
         with open(configpath, "w", encoding="utf-8") as f:
             config.write(f)
 
@@ -409,12 +408,11 @@ def get_conf_from_file(config_path, config_section, conf_list):  # 读取配置�
     for conf_item in conf_list:
         try:
             conf_item_setting = config[config_section][conf_item]
-            # 获取 列表类型的配置项
             if conf_item == "piserver" or conf_item == "email_receivers":
                 conf_item_setting = [item.strip() for item in conf_item_setting.split(",")]
         except Exception:
             conf_item_setting = conf_default[conf_item]
-        console_print(str(conf_item) + ":" + str(conf_item_setting))
+        print(str(conf_item) + ":" + str(conf_item_setting))
         conf_item_settings.append(conf_item_setting)
     if len(conf_list) > 1:
         return tuple(conf_item_settings)
@@ -422,214 +420,10 @@ def get_conf_from_file(config_path, config_section, conf_list):  # 读取配置�
         return conf_item_settings[0]
 
 
-def on_quit():
-    global icon
-    icon.stop()
-    os._exit(0)
-
-
-def sw_console():
-    global console_show
-
-    action_done = 0
-
-    while action_done == 0:
-
-        try:
-            if console_show == 0:
-                mainwin.deiconify()
-                console_show = 1
-            else:
-                mainwin.withdraw()
-                console_show = 0
-            action_done = 1
-        except Exception:
-            action_done = 0
-            time.sleep(1)
-
-    pass
-
-
-def textpad_insert(text, f):
-    f = str(f)
-    if text.get("1.0", "end") == "\n":
-        text.insert(tk.END, f)
-    else:
-        text.insert(tk.END, f+"\n")
-    pass
-
-
-def console_print(text):
-    global textpad, mainwin
-    mainwin.after(500, textpad_insert, textpad, text)
-    pass
-
-
 def get_resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
-
-
-def set_email():
-    global email_receivers, smtp_host, smtp_port, mail_user, mail_pass, sender_email, smtptype, mail_title
-    import tkinter as tk
-    from tkinter import ttk
-    from tkinter import messagebox
-
-    def save_email():
-        global email_receivers, smtp_host, smtp_port, mail_user, mail_pass, sender_email, smtptype, mail_title
-        email_receivers = email_receivers_entry.get()
-        smtp_host = smtp_host_entry.get()
-        smtp_port = smtp_port_entry.get()
-        mail_user = mail_user_entry.get()
-        mail_pass = mail_pass_entry.get()
-        sender_email = sender_email_entry.get()
-        smtptype = smtptype_entry.get()
-        mail_title = mail_title_entry.get()
-        config.set("Email", "smtp_host", smtp_host)
-        config.set("Email", "smtp_port", smtp_port)
-        config.set("Email", "mail_user", mail_user)
-        config.set("Email", "mail_pass", mail_pass)
-        config.set("Email", "sender_email", sender_email)
-        config.set("Email", "email_receivers", email_receivers)
-        config.set("Email", "smtptype", smtptype)
-        config.set("Email", "title", mail_title)
-        with open(configpath, "w", encoding="utf-8") as f:
-            config.write(f)
-        messagebox.showinfo("提示", "保存成功")
-        setwin.destroy()
-        pass
-
-    def cancel_email():
-        setwin.destroy()
-        pass
-
-    smtp_host = str(smtp_host)
-    smtp_port = str(smtp_port)
-    mail_user = str(mail_user)
-    mail_pass = str(mail_pass)
-    sender_email = str(sender_email)
-    smtptype = str(smtptype)
-    mail_title = str(mail_title)
-    setwin = tk.Toplevel()
-    setwin.title("设置电子邮件")
-    setwin.geometry("400x300")
-    setwin.resizable(0, 0)
-    # setwin.iconbitmap("ip.ico")
-
-    email_receivers_label = ttk.Label(setwin, text="收件人：")
-    email_receivers_label.place(x=10, y=10, width=80, height=20)
-    email_receivers_entry = ttk.Entry(setwin)
-    email_receivers_entry.place(x=100, y=10, width=280, height=20)
-    tomail = ""
-    for mail in email_receivers:
-        if tomail == "":
-            tomail = mail
-        else:
-            tomail = tomail + "," + mail
-
-    email_receivers_entry.insert(0, tomail)
-    smtp_host_label = ttk.Label(setwin, text="SMTP服务器：")
-    smtp_host_label.place(x=10, y=40, width=80, height=20)
-    smtp_host_entry = ttk.Entry(setwin)
-    smtp_host_entry.place(x=100, y=40, width=280, height=20)
-    smtp_host_entry.insert(0, smtp_host)
-    smtp_port_label = ttk.Label(setwin, text="SMTP端口：")
-    smtp_port_label.place(x=10, y=70, width=80, height=20)
-    smtp_port_entry = ttk.Entry(setwin)
-    smtp_port_entry.place(x=100, y=70, width=280, height=20)
-    smtp_port_entry.insert(0, smtp_port)
-    mail_user_label = ttk.Label(setwin, text="邮箱账号：")
-    mail_user_label.place(x=10, y=100, width=80, height=20)
-    mail_user_entry = ttk.Entry(setwin)
-    mail_user_entry.place(x=100, y=100, width=280, height=20)
-    mail_user_entry.insert(0, mail_user)
-    mail_pass_label = ttk.Label(setwin, text="邮箱密码：")
-    mail_pass_label.place(x=10, y=130, width=80, height=20)
-    mail_pass_entry = ttk.Entry(setwin)
-    mail_pass_entry.place(x=100, y=130, width=280, height=20)
-    mail_pass_entry.insert(0, mail_pass)
-    sender_email_label = ttk.Label(setwin, text="发件人：")
-    sender_email_label.place(x=10, y=160, width=80, height=20)
-    sender_email_entry = ttk.Entry(setwin)
-    sender_email_entry.place(x=100, y=160, width=280, height=20)
-    sender_email_entry.insert(0, sender_email)
-    smtptype_label = ttk.Label(setwin, text="加密方式：")
-    smtptype_label.place(x=10, y=190, width=80, height=20)
-    smtptype_entry = ttk.Entry(setwin)
-    smtptype_entry.place(x=100, y=190, width=280, height=20)
-    smtptype_entry.insert(0, smtptype)
-    mail_title_label = ttk.Label(setwin, text="邮件标题：")
-    mail_title_label.place(x=10, y=220, width=80, height=20)
-    mail_title_entry = ttk.Entry(setwin)
-    mail_title_entry.place(x=100, y=220, width=280, height=20)
-    save_btn = ttk.Button(setwin, text="保存", command=save_email)
-    save_btn.place(x=100, y=250, width=80, height=30)
-    cancel_btn = ttk.Button(setwin, text="取消", command=cancel_email)
-    cancel_btn.place(x=200, y=250, width=80, height=30)
-
-
-@new_thread
-def systray():
-    global icon
-    menu_options = pystray.Menu(
-        pystray.MenuItem("设置电子邮件", set_email),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem("控制台", sw_console),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem("退出", on_quit)
-    )
-    icon = pystray.Icon(name="外网IP监视器", icon=Image.open(
-        get_resource_path("./ip.png")), menu=menu_options, on_quit=on_quit)
-    icon.run()
-
-
-@new_thread
-def app():
-    while True:
-        schedule.run_pending()
-        time.sleep(10)
-
-
-class CustomText(tk.Text):
-    def __init__(self, *args, **kwargs):
-        """自定义多行文本框类，可实时监控变化事件"""
-        tk.Text.__init__(self, *args, **kwargs)
-        self._orig = self._w + '_orig'
-        self.tk.call('rename', self._w, self._orig)
-        self.tk.createcommand(self._w, self._proxy)
-
-    def _proxy(self, command, *args):
-        if command == 'get' and (args[0] == 'sel.first' and args[1] == 'sel.last') and not self.tag_ranges('sel'):
-            return
-        if command == 'delete' and (args[0] == 'sel.first' and args[1] == 'sel.last') and not self.tag_ranges('sel'):
-            return
-        cmd = (self._orig, command) + args
-        result = self.tk.call(cmd)
-        if command in ('insert', 'delete', 'replace'):
-            self.event_generate('<<TextModified>>')
-        return result
-
-
-def on_modify(event):
-    # 最大行数
-    max_lines = 100
-
-    # 获取Text组件的内容
-    content = textpad.get('1.0', 'end-1c')
-
-    # 分割内容为单行
-    lines = content.split('\n')
-
-    # 如果超出最大行数，则删除多余的行
-    if len(lines) > max_lines:
-        # 保留最新的max_lines行
-        lines = lines[-max_lines:]
-
-        # 更新Text组件的内容
-        textpad.delete('1.0', 'end')
-        textpad.insert('end', '\n'.join(lines))
 
 
 if __name__ == "__main__":
@@ -689,19 +483,8 @@ if __name__ == "__main__":
     chkIPchangeEmail = int(chkIPchangeEmail.strip())
     chkIPchangeInterval = int(chkIPchangeInterval.strip())
 
-    console_show = 0
-    systray()
-
     email_queue = Queue()
     process_email_queue(email_queue)
-    mainwin = tk.Tk()
-    mainwin.title("控制台")
-    mainwin.geometry("600x600")
-    textpad = CustomText(mainwin, undo=False)
-
-    textpad.pack(expand=True, fill='both')
-    textpad.bind('<<TextModified>>', on_modify)
-    textpad.insert(tk.END, "开启控制台\n")
 
     last_ip = ''
     history_ip = []
@@ -736,11 +519,8 @@ if __name__ == "__main__":
         schedule.every(chkIPchangeInterval).seconds.do(chk_ipchg)
     if chkInetAccess == 1:
         schedule.every(chkInetAccessInterval).seconds.do(chk_inet_access)
-    app()
 
-    console_print(str(history_ip))
-    mainwin.protocol("WM_DELETE_WINDOW", sw_console)
-    mainwin.withdraw()
-    console_show = 0
-
-    mainwin.mainloop()
+    print(history_ip)
+    while True:
+        schedule.run_pending()
+        time.sleep(10)
